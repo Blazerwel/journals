@@ -1,0 +1,143 @@
+
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import undetected_chromedriver as uc
+import random
+from datetime import datetime
+import zlib
+from selenium.webdriver.common.action_chains import ActionChains
+# conn = pymysql.connect(
+# host='localhost',
+# user='root',
+# password='',  # Your MySQL password if set
+# database='journals_db'
+# )
+# cursor = conn.cursor()
+
+# Web scraping setup
+chrome_options = uc.ChromeOptions()
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920x1080")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--proxy-server='direct://'")
+chrome_options.add_argument("--proxy-bypass-list=*")
+chrome_options.add_argument("--start-maximized")
+chrome_options.add_argument("--disable-infobars")
+chrome_options.add_argument("--disable-browser-side-navigation")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--ignore-certificate-errors")
+chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36")
+driver = uc.Chrome(options=chrome_options)
+success_count = 0
+failure_count = 0
+page_number = 1
+scraped_data = []
+while page_number <= 76:
+    url = f'https://aacrjournals.org/search-results?q=clinicaltrials.gov&sort=Date+-+Newest+First&hd=advancedAny&fl_SiteID=1&rg_PublicationDate=01%2f01%2f2020+TO+12%2f31%2f2024&pagesize=1506$%7bpageSize%7d&page={page_number}'
+    driver.get(url)
+
+    # Random sleep to simulate human browsing
+    sleep_time = random.uniform(5, 10)  # Increased variability
+    print(f"Sleeping for {sleep_time:.2f} seconds to mimic human behavior...")
+    time.sleep(sleep_time)
+
+    # Simulate scrolling behavior
+    scroll_pause_time = random.uniform(2, 4)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    print("Simulating scroll...")
+    time.sleep(scroll_pause_time)
+
+    # Interact with the page
+    try:
+        elements_to_hover = driver.find_elements(By.TAG_NAME, 'a')
+        if elements_to_hover:
+            element = random.choice(elements_to_hover)  # Randomly pick an element
+            ActionChains(driver).move_to_element(element).perform()
+            print("Simulating mouse hover...")
+            time.sleep(random.uniform(1, 3))
+    except Exception as e:
+        print(f"Mouse interaction failed: {e}")
+
+    articles = driver.find_elements(By.CSS_SELECTOR, "div.item-info")
+    for article in articles:
+        try:
+            source_id = 3
+            link_element = article.find_element(By.TAG_NAME, 'h4')
+            h3_text = link_element.find_element(By.TAG_NAME, 'a')
+            h3_link = h3_text.get_attribute('href') if link_element else "No link"
+            # cursor.execute('SELECT ID FROM Journals WHERE journal_URL = %s', (h3_link,))
+            result = True
+            if result:
+                print("journal exists going to next")
+
+            else:
+            # Visit article link with additional delay
+                driver.get(h3_link)
+                time.sleep(random.uniform(3, 6))  # Delay after navigating to the article
+                response = driver.page_source
+                driver.back()
+                time.sleep(random.uniform(1, 3))
+                html_content = response
+                compressed_html = zlib.compress(html_content.encode())
+        except Exception as e:
+            print(f"Error fetching article details: {e}")
+            h3_link = "No link"
+        if result:
+            print("j is present")
+        else:
+            pdf_link = "No link"
+            try:
+                pdf_block = article.find_element(By.XPATH, ".//a[contains(@href, '.pdf')]")
+                pdf_link = pdf_block.get_attribute('href') if pdf_block else "No link"
+            except Exception as e:
+                print(f"PDF link not found: {e}")
+
+            try:
+                date_element = article.find_element(By.XPATH, ".//div[@class='sri-date al-pub-date']")
+                date_text = date_element.text.strip()
+                date_text = date_text.replace('Published: ', '').strip()
+                published_date = datetime.strptime(date_text, "%d %B %Y")
+            except Exception as e:
+                print(f"Date parsing failed: {e}")
+                published_date = None
+
+            if h3_link != "No link":
+                authors_list = []
+                try:
+                    author_elements = article.find_elements(By.XPATH, ".//span[@class='wi-fullname brand-fg']")
+                    for author in author_elements:
+                        authors_list.append(author.text)
+                except Exception as e:
+                    print(f"Error fetching authors: {e}")
+
+            # cursor.execute('SELECT ID FROM Journals WHERE journal_URL = %s', (h3_link,))
+            # result = cursor.fetchone()
+            # if result:
+            #     journal_id = result[0]
+            #     print("Journal already exists. Skipping insertion.")
+            # else:
+            #     cursor.execute('''
+            #     INSERT INTO Journals (Source_ID, Title, journal_URL, PDF_URL, Published_date, HTML)
+            #     VALUES (%s, %s, %s, %s, %s, %s)
+            #     ''', (source_id, h3_text.text, h3_link, pdf_link, published_date, compressed_html))
+            #     journal_id = cursor.lastrowid
+            #     for author in authors_list:
+            #         cursor.execute('INSERT INTO authors (Author_name) VALUES (%s) ON DUPLICATE KEY UPDATE ID=LAST_INSERT_ID(ID)', (author,))
+            #         author_id = cursor.lastrowid
+            #         cursor.execute('INSERT INTO Author_Journal (Author_ID, Journal_ID) VALUES (%s, %s)', (author_id, journal_id))
+            # conn.commit()
+            print(f"Journal Title: {h3_text.text.strip() if h3_text else 'No Title'}")
+            print(f"Journal link: {h3_link}")
+            print(f"Published date: {published_date}")
+            print(f"PDF Link: {pdf_link}")
+            for author in authors_list:
+                print(f"Author: {author}")
+        print("-" * 40)
+    page_number += 1
+
+driver.quit()
+conn.close()

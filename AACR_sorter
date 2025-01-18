@@ -1,0 +1,65 @@
+import google.generativeai as genai
+import pymysql
+import json
+
+# Database connection
+conn = pymysql.connect(
+    host='localhost',
+    user='root',
+    password='',
+    database='journals_db'
+)
+cursor = conn.cursor()
+
+# Fetch all IDs, Titles, and Subjects from the 'Journals' and 'Subjects' tables
+sql_titles = "SELECT ID, extracted_text FROM Journals"
+cursor.execute(sql_titles)
+extracted_text_result = cursor.fetchall()
+cursor.close()
+conn.close()
+api_keys = [
+    'AIzaSyCLTs_6N2XUSFcF5UzTXChl9Pw-spBSoOo',
+    'AIzaSyDwDPs7AjfOxt6KIF997Hnv_lbMQbF5Of4',
+    'AIzaSyCFZnvNVxNt3suCWBAayX8ozcAsE0C4l-A',
+    'AIzaSyCP8_V-gCpw9cvfS5-N9F9JfbtrQJV2MeA',
+]
+key_number = 0
+genai.configure(api_key=api_keys[key_number])
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# Combine all titles into a single prompt, along with the list of subjects
+
+prompt = ( Cancer Types
+(e.g., Breast Cancer, CNS Cancers, Lung Cancer, etc.)
+
+Molecular and Cellular Mechanisms
+(e.g., Carcinogenesis, Cell Cycle, Tumor Microenvironment)
+
+Diagnostics and Biomarkers
+(e.g., Biomarkers, Liquid Biopsy, Imaging)
+
+Treatment Modalities
+(e.g., Chemotherapy, Immunotherapy, Surgical Oncology)
+
+Drug Discovery and Pharmacology
+(e.g., Drug Mechanisms, Targets, Resistance)
+
+Risk, Prevention, and Public Health
+(e.g., Cancer Prevention, Risk Factors, Epidemiology)
+
+Advanced Research Techniques and Technologies
+(e.g., Computational Methods, Gene Technologies, Proteomics)
+
+Clinical Research and Trials
+(e.g., Clinical Trials, Preclinical Models, Tumor Staging)
+
+Specialized and Emerging Topics
+(e.g., AIDS-Related Malignancies, Survivorship, Regulatory Science)
+)""
+# Call the API
+try:
+    response = model.generate_content(prompt)
+    sorted_titles = response.text.strip()
+    print("Sorted Titles:\n", sorted_titles)
+except Exception as e:
+    print(f"Error generating categories: {e}")

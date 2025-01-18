@@ -1,0 +1,166 @@
+import base64
+import random
+import time
+import google.generativeai as genai
+import pymysql
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
+from threading import Lock
+import zlib
+
+# API keys
+api_keys = [
+    'AIzaSyCLTs_6N2XUSFcF5UzTXChl9Pw-spBSoOo',
+    'AIzaSyDwDPs7AjfOxt6KIF997Hnv_lbMQbF5Of4',
+    'AIzaSyCFZnvNVxNt3suCWBAayX8ozcAsE0C4l-A',
+    'AIzaSyCP8_V-gCpw9cvfS5-N9F9JfbtrQJV2MeA',
+    'AIzaSyAbWS7EZXDazTxD3w_c3oBd-yIgZe1bLlE',
+    'AIzaSyD1wIuHPDdbjIEZyldA5FYffKxL_8NNe6A',
+    'AIzaSyAnrYFhUWy5wdK0dThyOWQEIFrDtztH0Gc',
+    'AIzaSyARjLZx_q9CtPjrQL3V7MUpZMQRxWRuRDY',
+    'AIzaSyA8VD-i1hYWz-YtkGCPhEJieWLDD8kB0fM',
+    'AIzaSyD5lOXzIp2KOONoIZHA13TGWRtpX89Qmmo',
+    'AIzaSyAxsyrg3GXH1tgMbuP2slU-qj4natfocrQ',
+    'AIzaSyC9mlkCvBllYJPgg6hW-eOKlHjOj26hQX0',
+    'AIzaSyBPpDgd-Tjcds00dMNMqetD9eSEbrngIDY',
+    'AIzaSyBlnpG8jgNaGhrmQV2kgtKShO1yKrdF_pM',
+    'AIzaSyBbnt3CzmKyNeSrT-xgDWq6A3MMquyWzLs',
+]
+
+# Queue for journal entries and a lock for thread-safe prints/logs
+journal_queue = Queue()
+print_lock = Lock()
+
+# Database connection setup
+def connect_to_db():
+    return pymysql.connect(
+        host="localhost",
+        user="root",
+        password="",
+        db="journals_db",
+    )
+
+# Thread-safe print function
+def safe_print(*args, **kwargs):
+    with print_lock:
+        print(*args, **kwargs)
+
+# Function to process a single journal entry
+def process_journal_entry(api_key):
+    while not journal_queue.empty():
+        try:
+            # Get a journal entry from the queue
+            journal_id, journal_htmlsource = journal_queue.get_nowait()
+        except Exception:
+            break  # Exit if the queue is empty
+
+        # Configure Gemini API with the current API key
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        try:
+            # Encode the HTML source
+            doc_data = base64.standard_b64encode(journal_htmlsource.encode("utf-8")).decode("utf-8")
+            document_payload = {
+                'mime_type': 'text/html',
+                'data': doc_data
+            }
+
+            prompt = (
+               """Organ-Specific Cancers
+                Breast Cancer, CNS Cancers, Gastrointestinal Cancers, Genitourinary Cancers, Gynecological Cancers, Hematological Cancers, Lung Cancer, Skin Cancers, Pediatric Cancers, Rare Cancers.
+                2. Carcinogenesis and Tumor Biology
+                Carcinogenesis, Tumor Microenvironment, Tumor Evolution, Tumor Heterogeneity, Tumor Staging.
+                3. Molecular and Cellular Mechanisms
+                Cell Cycle, Cell Death and Senescence, Cell Signaling, Cellular Stress Responses, Angiogenesis.
+                4. DNA Damage and Repair
+                DNA Repair Mechanisms, Genome Stability, Epigenetics.
+                5. Biomarkers and Diagnostics
+                Biomarkers (Diagnostic, Prognostic, Predictive), Liquid Biopsy, Imaging (Clinical and Molecular).
+                6. Immunotherapy and Immunology
+                PD-1, Checkpoint Inhibitors, CAR-T Therapy, Tumor Immunology.
+                7. Chemotherapy and Radiotherapy
+                Chemotherapy Mechanisms, Radiation Oncology, Radiobiology.
+                8. Surgical Oncology
+                Techniques and Advances in Surgical Treatment.
+                9. Targeted and Precision Medicine
+                Drug Targets, Precision Medicine, Small Molecule Agents, Nanoparticle-Based Therapies.
+                10. Drug Discovery and Pharmacology
+                Drug Discovery Technologies, Drug Resistance, Pharmacology.
+                11. Risk and Prevention
+                Cancer Prevention, Lifestyle Risk Factors, Environmental Risk Factors, Endogenous Risk Factors.
+                12. Epidemiology and Public Health
+                Population Studies, Health Policy, Implementation Science.
+                13. Clinical Trials and Research Operations
+                Clinical Trial Design and Results, Clinical-Stage Research, Preclinical Models.
+                14. Pediatric and Rare Cancers
+                Specialized Studies on Pediatric Cancers, Rare and Understudied Cancers.
+                15. Endocrine-Related Cancers and Endocrinology
+                Thyroid, Adrenal, Hormonal Influences on Cancer.
+                16. Tumor Progression, Metastasis, and Invasion
+                Mechanisms of Tumor Spread, Metastasis Modeling.
+                17. Computational and Bioinformatics Approaches
+                Computational Modeling, Systems Biology, Data-Driven Research.
+                18. Protein and Gene Technologies
+                Gene Regulation, CRISPR, Protein Technologies, Proteomics.
+                19. Survivorship and Quality of Life
+                Long-Term Outcomes, Survivorship Studies.
+                20. AIDS-Related and Virus-Associated Malignancies
+                AIDS-Related Cancers, Viral Oncogenesis.
+
+                Specialized and Emerging Topics
+                (e.g., AIDS-Related Malignancies, Survivorship, Regulatory Science) """
+                "these are the catogories using these. sort the extracted text of the journal i have given into one of these after extensive analysing perform 3 rounds of analysing then determine which catogery it should go into .as ur answer give me ONLY THE CATOGORY NAME NOTHING ELSE SHOULD BE IN UR ANSWER NOT A SINGLE OTHER WORD JUST TEH NAME OF THE CATOGORY"
+            )
+            # Call Gemini API
+            safe_print(f"Calling Gemini API for journal ID {journal_id} using API key {api_key[:10]}...")
+            response = model.generate_content([document_payload, prompt])
+            extracted_text = response.text
+            safe_print(f"Content extracted for journal ID {journal_id}.")
+
+            # Update the database
+            db_connection = connect_to_db()
+            cursor = db_connection.cursor()
+            update_query = """
+            UPDATE journals
+            SET catogories= %s
+            WHERE ID = %s
+            """
+            cursor.execute(update_query, (extracted_text, journal_id))
+            db_connection.commit()
+            cursor.close()
+            db_connection.close()
+            safe_print(f"Database updated for journal ID {journal_id}.")
+        except Exception as e:
+            safe_print(f"Error processing journal ID {journal_id} with API key {api_key[:10]}: {e}")
+        finally:
+            journal_queue.task_done()  # Mark the task as done
+            time.sleep(20)  # Delay to avoid overwhelming Gemini API
+# Main function to fetch journal entries and start threads
+def main():
+    try:
+        db_connection = connect_to_db()
+        cursor = db_connection.cursor()
+        sql = "SELECT id,extracted_text FROM Journals;"
+        cursor.execute(sql)
+        journal_entries = cursor.fetchall()
+        for journal_id, html_data in journal_entries:
+            journal_queue.put((journal_id, html_data))
+        cursor.close()
+        db_connection.close()
+        safe_print(f"Fetched {len(journal_entries)} journal entries.")
+    except Exception as e:
+        safe_print(f"Error fetching journal entries: {e}")
+        return
+
+    # Use ThreadPoolExecutor to process the queue with multiple threads
+    with ThreadPoolExecutor(max_workers=len(api_keys)) as executor:
+        for api_key in api_keys:
+            executor.submit(process_journal_entry, api_key)
+
+    # Wait for the queue to be fully processed
+    journal_queue.join()
+    safe_print("All journal entries processed.")
+if __name__ == "__main__":
+    main()
+

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal Entries</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <header>
+        <h1>Journal Entries</h1>
+    </header>
+
+    <main>
+        <section class="content">
+          <div class="pagination">
+            {% if page > 1 %}
+                <a href="{{ url_for('home', page=page-1) }}">Previous</a>
+            {% endif %}
+
+            <!-- Calculate the range of pages to display -->
+            {% if page - 2 > 0 %}
+                {% set start_page = page - 2 %}
+            {% else %}
+                {% set start_page = 1 %}
+            {% endif %}
+
+            {% if page + 2 <= total_pages %}
+                {% set end_page = page + 2 %}
+            {% else %}
+                {% set end_page = total_pages %}
+            {% endif %}
+
+            <!-- If there are pages before the start_page -->
+            {% if start_page > 1 %}
+                <a href="{{ url_for('home', page=1) }}">1</a>
+                {% if start_page > 2 %}
+                    <span>...</span>
+                {% endif %}
+            {% endif %}
+
+            <!-- Display the range of pages -->
+            {% for p in range(start_page, end_page + 1) %}
+                <a href="{{ url_for('home', page=p) }}" class="{% if p == page %}active{% endif %}">{{ p }}</a>
+            {% endfor %}
+
+            <!-- If there are pages after the end_page -->
+            {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}
+                    <span>...</span>
+                {% endif %}
+                <a href="{{ url_for('home', page=total_pages) }}">{{ total_pages }}</a>
+            {% endif %}
+
+            {% if page < total_pages %}
+                <a href="{{ url_for('home', page=page+1) }}">Next</a>
+            {% endif %}
+        </div>
+
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Journal URL</th>
+                        <th>PDF URL</th>
+                        <th>Published Date</th>
+                        <th>Actual PDF</th>
+                        <th>Created</th>
+                        <th>Modified</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for journal in journals %}
+                        <tr>
+                            <td>{{ journal.ID }}</td>
+                            <td>{{ journal.Title }}</td>
+                            <td><a href="{{ journal.journal_URL }}" target="_blank">{{ journal.journal_URL }}</a></td>
+                            <td><a href="{{ journal.PDF_URL }}" target="_blank">{{ journal.PDF_URL }}</a></td>
+                            <td>{{ journal.Published_date }}</td>
+                            <td><a href="{{ url_for('static', filename='pdfs/' + journal['Actual_PDF']) }}" target="_blank">Download</a></td>
+                            <td>{{ journal.Created }}</td>
+                            <td>{{ journal.Modified }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Pagination at the bottom of the table -->
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a href="{{ url_for('home', page=page-1) }}">Previous</a>
+                {% endif %}
+
+                <!-- Calculate the range of pages to display -->
+                {% if page - 2 > 0 %}
+                    {% set start_page = page - 2 %}
+                {% else %}
+                    {% set start_page = 1 %}
+                {% endif %}
+
+                {% if page + 2 <= total_pages %}
+                    {% set end_page = page + 2 %}
+                {% else %}
+                    {% set end_page = total_pages %}
+                {% endif %}
+
+                <!-- If there are pages before the start_page -->
+                {% if start_page > 1 %}
+                    <a href="{{ url_for('home', page=1) }}">1</a>
+                    {% if start_page > 2 %}
+                        <span>...</span>
+                    {% endif %}
+                {% endif %}
+
+                <!-- Display the range of pages -->
+                {% for p in range(start_page, end_page + 1) %}
+                    <a href="{{ url_for('home', page=p) }}" class="{% if p == page %}active{% endif %}">{{ p }}</a>
+                {% endfor %}
+
+                <!-- If there are pages after the end_page -->
+                {% if end_page < total_pages %}
+                    {% if end_page < total_pages - 1 %}
+                        <span>...</span>
+                    {% endif %}
+                    <a href="{{ url_for('home', page=total_pages) }}">{{ total_pages }}</a>
+                {% endif %}
+
+                {% if page < total_pages %}
+                    <a href="{{ url_for('home', page=page+1) }}">Next</a>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Journal Entries</p>
+    </footer>
+</body>
+</html>

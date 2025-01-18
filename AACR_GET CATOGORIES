@@ -1,0 +1,90 @@
+from bs4 import BeautifulSoup
+import pymysql
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time
+import undetected_chromedriver as uc
+import random
+from datetime import datetime
+import zlib
+from selenium.webdriver.common.action_chains import ActionChains
+subjects_ids ={}
+chrome_options = uc.ChromeOptions()
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920x1080")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--proxy-server='direct://'")
+chrome_options.add_argument("--proxy-bypass-list=*")
+chrome_options.add_argument("--start-maximized")
+chrome_options.add_argument("--disable-infobars")
+chrome_options.add_argument("--disable-browser-side-navigation")
+chrome_options.add_argument("--disable-extensions")
+chrome_options.add_argument("--ignore-certificate-errors")
+chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36")
+driver = uc.Chrome(options=chrome_options)
+conn = pymysql.connect(
+host='localhost',
+user='root',
+password='',  # Your MySQL password if set
+database='journals_db'
+)
+cursor = conn.cursor()
+
+# Load the HTML file
+file_path = "/Users/prithiviraj/codes/journals/page_content_.html"
+with open(file_path, "r", encoding="utf-8") as f:
+    html_content = f.read()
+
+# Parse the HTML content with BeautifulSoup
+soup = BeautifulSoup(html_content, 'html.parser')
+# Find all label elements with the "checkbox-label" class
+subject_elements = soup.select("label.checkbox-label")
+
+# Extract main headings and their associated redirect URL
+main_subjects_with_url = []
+for element in subject_elements:
+    text = element.get_text(strip=True).split('(')[0].strip()  # Get text and clean up
+
+    if text.isupper() and text:  # Filter for main headings
+        # Find the next input tag that is associated with the current label
+        input_tag = element.find_next('input', {'class': 'chkSelect'})
+
+        # Get the data-redirect-url if the input tag is found
+        if input_tag:
+            redirect_url = input_tag.get('data-redirect-url', '')
+            main_subjects_with_url.append((text, redirect_url))
+
+for subject, url in main_subjects_with_url:
+    print(f"{subject}")
+
+# result =  1
+# sql_titles = "SELECT ID, Title FROM Journals"
+# cursor.execute(sql_titles)
+# titles_result = cursor.fetchall()
+# for subject, url in main_subjects_with_url:
+#     before_url = "https://aacrjournals.org/search-results?"
+#     url = url.replace("page=1","pagesize=200&page=1")
+#     url = before_url + url
+#     subjects_ids[subject] = []
+#     driver.get(url)
+#     if result ==1:
+#         time.sleep(2)
+#     result = 0
+#     articles = driver.find_elements(By.CSS_SELECTOR, "div.item-info")
+#     for article in articles:
+#         link_element = article.find_element(By.TAG_NAME, 'h4')
+#         h3_text = link_element.find_element(By.TAG_NAME, 'a')
+#         print(h3_text.text)
+#         for id,title in titles_result:
+#             if title == h3_text.text:
+#                 cursor.execute('''
+#                     INSERT INTO subjects (subjects,Journal_ID)
+#                     VALUES (%s, %s)
+#                     ''', (subject,id))
+#                 conn.commit()
+#                 print(f"{id} added to {subject} and is in database")
+# cursor.close()
+# conn.close()
+# driver.quit()
